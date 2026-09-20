@@ -18,13 +18,14 @@ from mycodo.mycodo_client import DaemonControl
 from mycodo.utils.database import db_retrieve_table_daemon
 from mycodo.utils.pump_history import append_batch_intent_record
 
-# ── GH Flora Series Light Feed recipes (ml/gal) ───────────────────────────────
+# GH Flora Basic Applications Table — full-strength ml/gal (1 tsp = 4.93 ml)
+# strength_factor scales these down at dose time (default 0.33 = 1/3 strength)
 STAGE_RECIPES = {
-    'seedling':       {'micro': 1.8, 'gro': 1.8, 'bloom': 1.8},
-    'early_veg':      {'micro': 3.6, 'gro': 3.4, 'bloom': 2.6},
-    'late_veg':       {'micro': 6.0, 'gro': 5.6, 'bloom': 4.2},
-    'early_bloom':    {'micro': 5.3, 'gro': 4.6, 'bloom': 6.0},
-    'mid_late_bloom': {'micro': 4.7, 'gro': 4.7, 'bloom': 6.6},
+    'seedling':       {'gro': 1.25, 'micro': 1.25, 'bloom': 1.25},  # 1/4 tsp each
+    'early_veg':      {'gro': 5.0,  'micro': 5.0,  'bloom': 5.0 },  # 1 tsp each
+    'late_veg':       {'gro': 15.0, 'micro': 10.0, 'bloom': 10.0},  # 3/2/2 tsp
+    'early_bloom':    {'gro': 10.0, 'micro': 10.0, 'bloom': 10.0},  # 2/2/2 tsp
+    'mid_late_bloom': {'gro': 5.0,  'micro': 10.0, 'bloom': 15.0},  # 1/2/3 tsp
 }
 
 FUNCTION_INFORMATION = {
@@ -515,6 +516,24 @@ class CustomModule(AbstractFunction):
 
         try:
             publish_result = self._publish_via_output(payload)
+            try:
+                from mycodo.utils.grow_history import log_dosing_event
+                for pid, ml in [
+                    (self.pump_id_calmag, doses['calmag']),
+                    (self.pump_id_micro,  doses['micro']),
+                    (self.pump_id_gro,    doses['gro']),
+                    (self.pump_id_bloom,  doses['bloom']),
+                ]:
+                    log_dosing_event(
+                        trigger='nutrient',
+                        pump_id=pid,
+                        volume_ml=ml,
+                        grow_stage=stage,
+                        strength_factor=strength,
+                        batch_id=payload_dict['batch_id'],
+                    )
+            except Exception as _he:
+                self.logger.warning("grow_history dosing log failed: {}".format(_he))
             self.logger.info(
                 "Batch submitted via output {} successfully: {} | Cal-Mag={:.2f}ml, Micro={:.2f}ml, "
                 "Gro={:.2f}ml, Bloom={:.2f}ml, total={:.2f}ml".format(
