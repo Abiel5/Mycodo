@@ -10,7 +10,7 @@ from mycodo.utils.influx import add_measurements_influxdb
 
 measurements_dict = {
     0: {'measurement': 'ion_concentration',       'unit': 'pH'},
-    1: {'measurement': 'electrical_conductivity',  'unit': 'μS_cm'},
+    1: {'measurement': 'electrical_conductivity',  'unit': 'uS_cm'},
     2: {'measurement': 'temperature',              'unit': 'F'},   # water temp
     3: {'measurement': 'temperature',              'unit': 'F'},   # air temp
     4: {'measurement': 'humidity',                 'unit': 'percent'},
@@ -253,6 +253,21 @@ class InputModule(AbstractInput):
         self.logger.debug("Sensor read ok: {}".format(
             {_CHANNEL_FIELDS[c]: self.return_dict[c].get('value') for c in _CHANNEL_FIELDS if 'value' in self.return_dict[c]}
         ))
+
+        try:
+            from mycodo.utils.grow_history import log_sensor_reading
+            def _v(field):
+                raw = values.get(field)
+                return float(raw) if raw is not None and float(raw) >= 0 else None
+            log_sensor_reading(
+                ph=_v('ph'),
+                ec=_v('ec'),
+                water_temp_f=_v('water_temp'),
+                air_temp_f=_v('air_temp'),
+                air_humidity=_v('air_hum'),
+            )
+        except Exception as err:
+            self.logger.warning("grow_history sensor log failed: {}".format(err))
 
         return self.return_dict
 

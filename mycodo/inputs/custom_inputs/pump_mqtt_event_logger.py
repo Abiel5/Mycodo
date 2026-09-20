@@ -15,19 +15,19 @@ from mycodo.utils.pump_history import pump_history_file_path
 
 measurements_dict = {
     0: {
-        'measurement': 'controller_online',
+        'measurement': 'boolean',
         'unit': 'bool'
     },
     1: {
-        'measurement': 'motor_busy',
+        'measurement': 'boolean',
         'unit': 'bool'
     },
     2: {
-        'measurement': 'wifi_rssi',
+        'measurement': 'unitless',
         'unit': 'none'
     },
     3: {
-        'measurement': 'free_heap',
+        'measurement': 'unitless',
         'unit': 'none'
     }
 }
@@ -220,6 +220,9 @@ class InputModule(AbstractInput):
 
         append_mqtt_record(msg.topic, payload_dict)
 
+        if msg.topic == self.resp_topic:
+            self._check_for_errors(payload_dict)
+
         if msg.topic == self.status_topic:
             self._store_status_measurements(payload_dict)
 
@@ -259,28 +262,23 @@ class InputModule(AbstractInput):
         if not output:
             raise ValueError("Selected MQTT Output '{}' was not found".format(output_id))
 
-        output_options = self._load_json(output.custom_options)
         channel = db_retrieve_table_daemon(OutputChannel).filter(
             OutputChannel.output_id == output_id
         ).first()
         channel_options = self._load_json(channel.custom_options if channel else '')
 
-        self.mqtt_hostname = output_options.get('hostname', 'localhost')
-        self.mqtt_port = int(output_options.get('port', 1883))
-        self.mqtt_keepalive = int(output_options.get('keepalive', 60))
+        self.mqtt_hostname = channel_options.get('hostname', 'localhost')
+        self.mqtt_port = int(channel_options.get('port', 1883))
+        self.mqtt_keepalive = 60
         self.resp_topic = channel_options.get('resp_topic', 'esp32/pump/resp')
         self.status_topic = channel_options.get('status_topic', 'esp32/pump/status')
 
-        output_clientid = output_options.get('clientid') or 'pump_output'
-        self.mqtt_clientid = '{}_evt_{}'.format(
-            output_clientid,
-            self.unique_id.split('-')[0]
-        )
+        self.mqtt_clientid = 'pump_evt_{}'.format(self.unique_id.split('-')[0])
 
-        use_auth = self._coerce_bool(output_options.get('use_auth'))
+        use_auth = self._coerce_bool(channel_options.get('use_auth'))
         if use_auth:
-            self.mqtt_username = output_options.get('username') or None
-            self.mqtt_password = output_options.get('password') or None
+            self.mqtt_username = channel_options.get('username') or None
+            self.mqtt_password = channel_options.get('password') or None
         else:
             self.mqtt_username = None
             self.mqtt_password = None
@@ -297,6 +295,51 @@ class InputModule(AbstractInput):
             },
             source='mqtt_input_connection'
         )
+
+    def _check_for_errors(self, payload):
+        if not isinstance(payload, dict):
+            return
+
+        msg_type = payload.get('type', '')
+        pump_id = payload.get('pump_id', '?')
+        reason = payload.get('reason', '')
+
+        # Batch rejected before starting
+        if msg_type == 'batch_response' and payload.get('ok') is False:
+            self.logger.error(
+                "Batch rejected: batch_id={}, reason={}".format(
+                    payload.get('batch_id', '?'), reason
+                )
+            )
+
+        # Single pump command rejected by the motor scheduler
+        elif msg_type == 'pump_event' and payload.get('state') == 'rejected':
+            self.logger.error(
+                "Pump command rejected: pump_id={}, request_id={}, reason={}".format(
+                    pump_id, payload.get('request_id', '?'), reason
+                )
+            )
+
+        # A step inside a batch failed
+        elif msg_type == 'batch_item_event' and payload.get('state') == 'failed':
+            self.logger.error(
+                "Batch step failed: batch_id={}, item_id={}, pump_id={}, reason={}".format(
+                    payload.get('batch_id', '?'),
+                    payload.get('item_id', '?'),
+                    pump_id,
+                    reason
+                )
+            )
+
+        # Entire batch aborted mid-run
+        elif msg_type == 'batch_event' and payload.get('state') == 'aborted':
+            self.logger.error(
+                "Batch aborted: batch_id={}, reason={}, failed_index={}".format(
+                    payload.get('batch_id', '?'),
+                    reason,
+                    payload.get('failed_index', '?')
+                )
+            )
 
     def _store_status_measurements(self, payload):
         measurement = {}
