@@ -2,19 +2,30 @@
 
 Fork of `kizniche/Mycodo` (`origin` = `Abiel5/Mycodo`, `upstream` = `kizniche/Mycodo`).
 Work happens on the **`mycodo-mqtt-doser`** branch; `master` is a mirror of upstream and
-must never take commits. Cross-repo contracts (MQTT topics, `pump_id`/`sensor_id`, the
-shared `grow_history.db`, change playbooks) live in the workspace-level `CLAUDE.md` —
-read that first. This file covers only what is specific to this repo.
+must never take commits.
 
 ## Role in the system
 
-Mycodo is the **data-collection and logging side**. Day-to-day dosing is done from
-`grow-ui`, not from here. What Mycodo actually does in practice:
+Mycodo is currently the **data-collection and logging side**. Day-to-day nutrient dosing
+is done from the `grow-ui` web app; event-driven dosing from Mycodo (starting with pH
+control) is planned. What Mycodo does today:
 
 - polls the sensor ESP32 and stores readings (Mycodo Influx graphs + `grow_history.db`)
 - listens to the pump ESP32 and records pump events
 - provides a pump output (manual controls in the Mycodo UI, and the publish path for the
   pH function)
+
+## Shared interfaces
+
+- **MQTT** (JSON, every message has `"v": 1`): `esp32/pump/{cmd,resp,status}` and
+  `esp32/sensors/{cmd,resp,status}`. Commands carry a `request_id` that the firmware echoes.
+- **Names:** pumps are `calmag`, `micro`, `gro`, `bloom`, `phup`, `phdown`; sensors are
+  `ph`, `ec`, `water_temp`, `air`. These are defined by the firmware and used as-is here.
+- **Database:** `/opt/Mycodo/mycodo/databases/grow_history.db` (`dosing_events`,
+  `sensor_readings`), also written by grow-ui. The schema is defined in both codebases, so
+  a new column must be added in both, plus a manual `ALTER TABLE` on the Pi.
+- **Never run a batch from Mycodo and grow-ui at the same time.** The pump ESP32 accepts
+  one batch at a time.
 
 ## Custom modules (the whole diff against upstream)
 
