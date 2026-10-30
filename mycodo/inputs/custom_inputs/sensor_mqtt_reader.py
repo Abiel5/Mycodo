@@ -211,7 +211,7 @@ class InputModule(AbstractInput):
             self._pending_event = event
             self._pending_values = None
 
-        payload = json.dumps({'v': 1, 'cmd': 'read_all', 'request_id': request_id})
+        payload = json.dumps({'v': 1, 'type': 'read_all', 'request_id': request_id})
         self.client.publish(self.cmd_topic, payload)
         self.logger.debug("Sent read_all (request_id={})".format(request_id))
 
