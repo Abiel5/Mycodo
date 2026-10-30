@@ -195,7 +195,7 @@ class InputModule(AbstractInput):
 
     def on_message(self, client, userdata, msg):
         try:
-            payload_text = msg.payload.decode()
+            payload_text = msg.payload.decode('utf-8', errors='replace')
         except Exception as err:
             self.logger.error("Unable to decode MQTT payload on {}: {}".format(msg.topic, err))
             append_mqtt_record(msg.topic, {
