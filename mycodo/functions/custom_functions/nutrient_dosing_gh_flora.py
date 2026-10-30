@@ -3,7 +3,7 @@
 # nutrient_dosing_gh_flora.py - Mycodo Function: GH Flora Series Nutrient Dosing
 #
 # Computes Cal-Mag + FloraMicro + FloraGro + FloraBloom doses from gallons added
-# and growth stage, then publishes a single pump_batch MQTT command to the
+# and growth stage, then publishes a single batch MQTT command to the
 # ESP32 pump controller.
 #
 # Drop this file in: /opt/Mycodo/mycodo/functions/
@@ -35,7 +35,7 @@ FUNCTION_INFORMATION = {
     'message': (
         'Automated nutrient dosing using GH Flora Series (Light Feed chart). '
         'Computes Cal-Mag + Micro + Gro + Bloom doses based on gallons added '
-        'and growth stage, then sends a single pump_batch MQTT command to the '
+        'and growth stage, then sends a single batch MQTT command to the '
         'ESP32 pump controller for sequential execution with mixing delays.'
     ),
 
@@ -237,7 +237,7 @@ class CustomModule(AbstractFunction):
     Nutrient dosing function for GH Flora Series (Light Feed).
 
     Computes Cal-Mag + Micro + Gro + Bloom doses from gallons added and
-    growth stage, then publishes a single pump_batch MQTT payload to the
+    growth stage, then publishes a single batch MQTT payload to the
     ESP32 pump controller for sequential execution with per-step mixing delays.
     """
 
@@ -366,8 +366,8 @@ class CustomModule(AbstractFunction):
         prefix = self.batch_id_prefix or 'nutrient'
         payload_dict = {
             'v': 1,
-            'type': 'pump_batch',
-            'batch_id': '{}-{}'.format(prefix, uuid4().hex[:8]),
+            'type': 'batch',
+            'request_id': '{}-{}'.format(prefix, uuid4().hex[:8]),
             'options': {
                 'stop_on_error': bool(self.stop_on_error),
             },
@@ -399,8 +399,8 @@ class CustomModule(AbstractFunction):
             ]
         }
         self.logger.debug(
-            "Batch payload built: batch_id={}, stop_on_error={}, commands={}".format(
-                payload_dict['batch_id'],
+            "Batch payload built: request_id={}, stop_on_error={}, commands={}".format(
+                payload_dict['request_id'],
                 payload_dict['options']['stop_on_error'],
                     ['{pump_id}:{cmd} (post-delay {post_delay_ms}ms)'.format(**c)
                  for c in payload_dict['commands']]
@@ -464,7 +464,7 @@ class CustomModule(AbstractFunction):
         return self._format_preview(gallons, stage, strength, doses)
 
     def calculate_and_dose(self, args_dict):
-        """Compute doses and publish a single pump_batch MQTT command."""
+        """Compute doses and publish a single batch MQTT command."""
         try:
             gallons, stage, strength = self._resolve_inputs(args_dict)
         except ValueError as err:
@@ -495,7 +495,7 @@ class CustomModule(AbstractFunction):
         )
         try:
             append_batch_intent_record(
-                batch_id=payload_dict['batch_id'],
+                batch_id=payload_dict['request_id'],
                 function_id=self.unique_id,
                 output_id=output_id,
                 gallons_added=gallons,
@@ -508,7 +508,7 @@ class CustomModule(AbstractFunction):
         except Exception as err:
             self.logger.warning(
                 "Unable to persist batch intent for {}: {}".format(
-                    payload_dict['batch_id'], err
+                    payload_dict['request_id'], err
                 )
             )
 
@@ -530,7 +530,7 @@ class CustomModule(AbstractFunction):
                         volume_ml=ml,
                         grow_stage=stage,
                         strength_factor=strength,
-                        batch_id=payload_dict['batch_id'],
+                        batch_id=payload_dict['request_id'],
                     )
             except Exception as _he:
                 self.logger.warning("grow_history dosing log failed: {}".format(_he))

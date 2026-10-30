@@ -304,11 +304,12 @@ class InputModule(AbstractInput):
         pump_id = payload.get('pump_id', '?')
         reason = payload.get('reason', '')
 
-        # Batch rejected before starting
-        if msg_type == 'batch_response' and payload.get('ok') is False:
+        # Request refused by the controller (bad pump, busy, invalid batch, ...)
+        if msg_type == 'pump_response' and payload.get('ok') is False:
             self.logger.error(
-                "Batch rejected: batch_id={}, reason={}".format(
-                    payload.get('batch_id', '?'), reason
+                "Pump request failed: pump_id={}, request_id={}, error={}, message={}".format(
+                    pump_id, payload.get('request_id', '?'),
+                    payload.get('error', '?'), payload.get('message', '')
                 )
             )
 
@@ -323,8 +324,8 @@ class InputModule(AbstractInput):
         # A step inside a batch failed
         elif msg_type == 'batch_item_event' and payload.get('state') == 'failed':
             self.logger.error(
-                "Batch step failed: batch_id={}, item_id={}, pump_id={}, reason={}".format(
-                    payload.get('batch_id', '?'),
+                "Batch step failed: request_id={}, item_id={}, pump_id={}, reason={}".format(
+                    payload.get('request_id', '?'),
                     payload.get('item_id', '?'),
                     pump_id,
                     reason
@@ -334,8 +335,8 @@ class InputModule(AbstractInput):
         # Entire batch aborted mid-run
         elif msg_type == 'batch_event' and payload.get('state') == 'aborted':
             self.logger.error(
-                "Batch aborted: batch_id={}, reason={}, failed_index={}".format(
-                    payload.get('batch_id', '?'),
+                "Batch aborted: request_id={}, reason={}, failed_index={}".format(
+                    payload.get('request_id', '?'),
                     reason,
                     payload.get('failed_index', '?')
                 )

@@ -37,7 +37,7 @@ Everything else in the repo is upstream's. Do not edit core Mycodo files.
 | `mycodo/inputs/custom_inputs/pump_mqtt_event_logger.py` | Input | **active** | Subscribes to `esp32/pump/resp` and `esp32/pump/status`, records pump events (Influx + legacy `pump_history`). Passive. |
 | `mycodo/outputs/custom_outputs/pump_atlas_ezo_pmp_mqtt.py` | Output | active | Owns the MQTT broker connection. Manual commands from the Mycodo UI (dispense, stop, info, status, calibration, batch). Publisher only — not a pump driver. |
 | `mycodo/functions/custom_functions/ph_control.py` | Function | **not running yet** | Step-dose pH loop with cooldown: reads pH from Influx, publishes pH Up/Down through the pump output, logs to `grow_history`. Planned for later. |
-| `mycodo/functions/custom_functions/nutrient_dosing_gh_flora.py` | Function | **unused** | Computes GH Flora doses and publishes one `pump_batch`. Superseded by grow-ui; kept for reference. |
+| `mycodo/functions/custom_functions/nutrient_dosing_gh_flora.py` | Function | **unused** | Computes GH Flora doses and publishes one `batch`. Superseded by grow-ui; kept for reference. |
 | `mycodo/utils/grow_history.py` | Util | active | Shared SQLite logger (`log_sensor_reading`, `log_dosing_event`). Schema is duplicated in `grow-ui/history.py` — keep the two in step. |
 | `mycodo/utils/pump_history.py` | Util | legacy | Older JSONL + SQLite pump history, still imported by the event logger and the nutrient function. New code should use `grow_history`. |
 

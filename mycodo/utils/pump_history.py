@@ -61,6 +61,10 @@ def append_mqtt_record(topic, payload, source='mqtt_input'):
         if batch_id is None and isinstance(payload.get('batch'), dict):
             batch_id = payload['batch'].get('batch_id')
 
+        # Batch events identify the batch by the request_id of the request that started it.
+        if batch_id is None and event_type in ('batch_event', 'batch_item_event'):
+            batch_id = payload.get('request_id')
+
     return append_pump_history_record(
         record_type='mqtt_event',
         batch_id=batch_id,

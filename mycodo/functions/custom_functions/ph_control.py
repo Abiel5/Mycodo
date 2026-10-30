@@ -185,7 +185,7 @@ class CustomModule(AbstractFunction):
 
     On each loop cycle: reads pH, doses pH Up or pH Down if outside the
     setpoint ± deadband window, then waits cooldown_sec before allowing
-    another dose. Publishes a single-item pump_batch to the ESP32 via
+    another dose. Publishes a single-item batch to the ESP32 via
     the configured MQTT Output.
     """
 
@@ -351,8 +351,8 @@ class CustomModule(AbstractFunction):
         prefix = self.batch_id_prefix or 'ph'
         payload_dict = {
             'v': 1,
-            'type': 'pump_batch',
-            'batch_id': '{}-{}'.format(prefix, uuid4().hex[:8]),
+            'type': 'batch',
+            'request_id': '{}-{}'.format(prefix, uuid4().hex[:8]),
             'options': {
                 'stop_on_error': True,
             },
@@ -366,8 +366,8 @@ class CustomModule(AbstractFunction):
             ]
         }
         self.logger.debug(
-            "pH batch payload: batch_id={}, pump={}, dose={:.2f} ml".format(
-                payload_dict['batch_id'], pump_id, dose_ml
+            "pH batch payload: request_id={}, pump={}, dose={:.2f} ml".format(
+                payload_dict['request_id'], pump_id, dose_ml
             )
         )
         return json.dumps(payload_dict)

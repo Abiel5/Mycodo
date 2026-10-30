@@ -302,6 +302,7 @@ class OutputModule(AbstractOutput):
 
         payload = json.dumps({
             'v': 1,
+            'type': 'raw',
             'pump_id': pump_id,
             'cmd': cmd,
             'wait_ms': int(self.options_channels['wait_ms'][0]),
